@@ -20,7 +20,8 @@
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <script src="https://unpkg.com/leaflet-geosearch@3.11.1/dist/geosearch.umd.js"></script>
     <script>
-    const map = L.map('map', { minZoom: 6, maxZoom: 19 }).setView([10.7769,106.7009], 13);
+        const map = L.map('map', { minZoom:6, maxZoom:19 }).setView([10.7769,106.7009],13);
+
         L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png', {
             attribution: 'Map tiles by Stamen Design, CC BY 3.0 — Map data © OpenStreetMap contributors',
             minZoom: 6,
@@ -28,40 +29,56 @@
         }).addTo(map);
 
 
-        var markers = L.layerGroup();
+        const markers = L.markerClusterGroup({ disableClusteringAtZoom: 17 });
 
-        // Hàm tạo icon theo thương hiệu
         const getBrandIcon = (brand) => {
             const brands = ["7-Eleven", "Circle K", "GS25", "Ministop", "WinMart", "FamilyMart"];
             const matchedBrand = brands.find(b => brand.toLowerCase().includes(b.toLowerCase()));
             const iconUrl = matchedBrand ? `logos/${matchedBrand}.png` : 'https://leafletjs.com/examples/custom-icons/leaf-green.png';
 
             return L.icon({
-                iconUrl, iconSize:[25,25], iconAnchor:[13,25], popupAnchor:[0,-25]
+                iconUrl, iconSize:[35,35], iconAnchor:[17,35], popupAnchor:[0,-35]
             });
         };
 
-        // Load cửa hàng tiện lợi từ OSM qua Overpass API
+
         const query = `[out:json][timeout:25];
-        (node["shop"="convenience"](around:5000,10.7769,106.7009););
-        out;`;
+      (
+          node["shop"="convenience"](around:5000,10.7769,106.7009);
+          node["amenity"="restaurant"](around:5000,10.7769,106.7009);
+          node["amenity"="cafe"](around:5000,10.7769,106.7009);
+      );
+      out;`;
+      
+      fetch("https://overpass-api.de/api/interpreter", { method: "POST", body: query })
+      .then(res => res.json())
+      .then(data => {
+          data.elements.forEach(point => {
+              const name = point.tags.name || "Không rõ tên";
+              const type = point.tags.amenity || point.tags.shop;
+              const address = point.tags["addr:full"] || point.tags["addr:street"] || "Không rõ địa chỉ";
+      
+              const marker = L.marker([point.lat, point.lon])
+                  .bindPopup(`<b>${name}</b><br>Loại: ${type}<br>${address}`);
+      
+              markers.addLayer(marker);
+          });
+      
+          map.addLayer(markers); // Dùng markers.addLayer thay vì marker.addTo(map)
+      });
 
-        fetch("https://overpass-api.de/api/interpreter", { method: "POST", body: query })
-        .then(res=>res.json())
-        .then(data=>{
-            data.elements.forEach(store=>{
-                const name = store.tags.name || "Cửa hàng tiện lợi";
-                const brand = store.tags.brand || name;
 
-                const marker = L.marker([store.lat,store.lon],{ icon:getBrandIcon(brand) })
-                    .bindPopup(`<b>${name}</b><br>${brand}`);
-
-                markers.addLayer(marker);
+        map.on('click', function(e) {
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${e.latlng.lat}&lon=${e.latlng.lng}`)
+            .then(response => response.json())
+            .then(data => {
+                L.popup()
+                .setLatLng(e.latlng)
+                .setContent(data.display_name || "Không tìm thấy thông tin")
+                .openOn(map);
             });
-            map.addLayer(markers);
         });
 
-        // Thanh tìm kiếm
         const searchControl = new GeoSearch.GeoSearchControl({
             provider:new GeoSearch.OpenStreetMapProvider({ params:{ countrycodes:'vn' } }),
             style:'bar',autoComplete:true,searchLabel:'Nhập địa chỉ tại Việt Nam...'
