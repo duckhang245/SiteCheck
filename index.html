@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bản đồ cửa hàng tiện lợi TP.HCM</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-geosearch@3.11.1/dist/geosearch.css"/>
+    <style>
+        #map { height: 100vh; width: 100%; margin:0; padding:0; }
+        .leaflet-control-geosearch input { font-size:14px; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script src="https://unpkg.com/leaflet-geosearch@3.11.1/dist/geosearch.umd.js"></script>
+    <script>
+        const map = L.map('map', { minZoom:6, maxZoom:30}).setView([10.7769,106.7009],12);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+            attribution:'© OpenStreetMap contributors'
+        }).addTo(map);
+
+        const markers = L.markerClusterGroup();
+
+        // Hàm tạo icon theo thương hiệu
+        const getBrandIcon = (brand) => {
+            const brands = ["7-Eleven", "Circle K", "GS25", "Ministop"];
+            const matchedBrand = brands.find(b => brand.toLowerCase().includes(b.toLowerCase()));
+            const iconUrl = matchedBrand ? `logos/${matchedBrand}.png` : 'https://leafletjs.com/examples/custom-icons/leaf-green.png';
+
+            return L.icon({
+                iconUrl, iconSize:[35,35], iconAnchor:[17,35], popupAnchor:[0,-35]
+            });
+        };
+
+        // Load cửa hàng tiện lợi từ OSM qua Overpass API
+        const query = `[out:json][timeout:25];
+        (node["shop"="convenience"](around:5000,10.7769,106.7009););
+        out;`;
+
+        fetch("https://overpass-api.de/api/interpreter", { method: "POST", body: query })
+        .then(res=>res.json())
+        .then(data=>{
+            data.elements.forEach(store=>{
+                const name = store.tags.name || "Cửa hàng tiện lợi";
+                const brand = store.tags.brand || name;
+
+                const marker = L.marker([store.lat,store.lon],{ icon:getBrandIcon(brand) })
+                    .bindPopup(`<b>${name}</b><br>${brand}`);
+
+                markers.addLayer(marker);
+            });
+            map.addLayer(markers);
+        });
+
+        // Thanh tìm kiếm
+        const searchControl = new GeoSearch.GeoSearchControl({
+            provider:new GeoSearch.OpenStreetMapProvider({ params:{ countrycodes:'vn' } }),
+            style:'bar',autoComplete:true,searchLabel:'Nhập địa chỉ tại Việt Nam...'
+        });
+
+        map.addControl(searchControl);
+    </script>
+</body>
+</html>
