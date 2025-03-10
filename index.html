@@ -20,7 +20,7 @@
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <script src="https://unpkg.com/leaflet-geosearch@3.11.1/dist/geosearch.umd.js"></script>
     <script>
-        const map = L.map('map', { minZoom:6, maxZoom:30}).setView([10.7769,106.7009],12);
+        const map = L.map('map', { minZoom:6, maxZoom:17 }).setView([10.7769,106.7009],12);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
             attribution:'© OpenStreetMap contributors'
@@ -30,7 +30,7 @@
 
         // Hàm tạo icon theo thương hiệu
         const getBrandIcon = (brand) => {
-            const brands = ["7-Eleven", "Circle K", "GS25", "Ministop"];
+            const brands = ["7-Eleven", "Circle K", "GS25", "Ministop", "WinMart", "FamilyMart"];
             const matchedBrand = brands.find(b => brand.toLowerCase().includes(b.toLowerCase()));
             const iconUrl = matchedBrand ? `logos/${matchedBrand}.png` : 'https://leafletjs.com/examples/custom-icons/leaf-green.png';
 
