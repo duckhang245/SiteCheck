@@ -46,22 +46,22 @@
       out;`;
       
       fetch("https://overpass-api.de/api/interpreter", { method: "POST", body: query })
-      .then(res => res.json())
-      .then(data => {
-          data.elements.forEach(point => {
-              const name = point.tags.name || "Không rõ tên";
-              const type = point.tags.amenity || point.tags.shop;
-              const address = point.tags["addr:full"] || point.tags["addr:street"] || "Không rõ địa chỉ";
-      
-              const marker = L.marker([point.lat, point.lon])
-                  .bindPopup(`<b>${name}</b><br>Loại: ${type}<br>${address}`);
-      
-              markers.addLayer(marker);
-          });
-      
-          map.addLayer(markers); // Dùng markers.addLayer thay vì marker.addTo(map)
-      });
-
+        .then(res => res.json())
+        .then(data => {
+            data.elements.forEach(point => {
+                const name = point.tags.name || "Không rõ tên";
+                const type = point.tags.amenity || point.tags.shop;
+                const address = point.tags["addr:full"] || point.tags["addr:street"] || "Không rõ địa chỉ";
+        
+                // Sử dụng hàm getBrandIcon để gán icon theo brand/type
+                const marker = L.marker([point.lat, point.lon], { icon: getBrandIcon(name) })
+                    .bindPopup(`<b>${name}</b><br>Loại: ${type}<br>${address}`);
+        
+                markers.addLayer(marker);
+            });
+        
+            map.addLayer(markers);
+        });
 
         map.on('click', function(e) {
             fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${e.latlng.lat}&lon=${e.latlng.lng}`)
