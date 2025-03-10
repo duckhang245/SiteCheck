@@ -20,13 +20,13 @@
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <script src="https://unpkg.com/leaflet-geosearch@3.11.1/dist/geosearch.umd.js"></script>
     <script>
-        const map = L.map('map', { minZoom: 6, maxZoom: 19 }).setView([10.7769,106.7009], 13);
+    const map = L.map('map', { minZoom: 6, maxZoom: 19 }).setView([10.7769,106.7009], 13);
+        L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png', {
+            attribution: 'Map tiles by Stamen Design, CC BY 3.0 — Map data © OpenStreetMap contributors',
+            minZoom: 6,
+            maxZoom: 19
+        }).addTo(map);
 
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                attribution: '© OpenStreetMap contributors, © CARTO',
-                minZoom: 6,
-                maxZoom: 19
-            }).addTo(map);
 
         var markers = L.layerGroup();
 
