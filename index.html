@@ -63,6 +63,14 @@
             map.addLayer(markers);
         });
 
+        map.on('zoomend', function() {
+          if (map.getZoom() >= 14) {
+              map.addLayer(markers);
+          } else {
+              map.removeLayer(markers);
+          }
+      });
+
         map.on('click', function(e) {
             fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${e.latlng.lat}&lon=${e.latlng.lng}`)
             .then(response => response.json())
