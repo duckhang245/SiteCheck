@@ -26,7 +26,7 @@
             attribution:'© OpenStreetMap contributors'
         }).addTo(map);
 
-        const markers = L.markerClusterGroup({ disableClusteringAtZoom: 17 });
+        const markers = L.layerGroup();
 
         const getBrandIcon = (brand) => {
             const brands = ["7-Eleven", "Circle K", "GS25", "Ministop", "WinMart", "FamilyMart"];
