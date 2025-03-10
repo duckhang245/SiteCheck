@@ -26,7 +26,11 @@
             attribution:'© OpenStreetMap contributors'
         }).addTo(map);
 
-        const markers = L.markerClusterGroup();
+        var markers = L.markerClusterGroup({
+            maxClusterRadius: 20, // Giảm kích thước vùng cluster lại, mặc định 80
+            disableClusteringAtZoom: 16 // Zoom level không gom nữa (zoom càng lớn càng chi tiết)
+        });
+
 
         // Hàm tạo icon theo thương hiệu
         const getBrandIcon = (brand) => {
