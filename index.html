@@ -11,161 +11,174 @@
   <style>
     #map { height: 100vh; width: 100%; margin:0; padding:0; }
     .leaflet-control-geosearch input { font-size:14px; }
-    #toggle-mode {
-      position: absolute;
-      z-index: 1000;
-      top: 10px;
-      left: 10px;
-      padding: 6px 12px;
+    button {
       background: white;
       border: 1px solid #ccc;
+      padding: 6px 12px;
       cursor: pointer;
+      font-size: 14px;
     }
+    #toggle-mode, #toggle-osm {
+      position: absolute;
+      z-index: 1000;
+      left: 10px;
+    }
+    #toggle-mode { top: 10px; }
+    #toggle-osm { top: 50px; }
   </style>
 </head>
 <body>
 
+<!-- Nút chức năng -->
 <button id="toggle-mode">Chuyển sang chế độ điền dữ liệu</button>
+<button id="toggle-osm">Hiện điểm từ OSM</button>
 <div id="map"></div>
 
+<!-- Thư viện -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://unpkg.com/leaflet-geosearch@3.11.1/dist/geosearch.umd.js"></script>
+
 <script>
-  const GOOGLE_SHEET_API = "YOUR_DEPLOYED_API_URL"; // ← Thay link Google Sheets API
+const GOOGLE_SHEET_API = "YOUR_DEPLOYED_API_URL"; // ⚠️ Thay bằng link Google Apps Script của bạn
 
-  const map = L.map('map', { minZoom:6, maxZoom:19 }).setView([10.7769,106.7009],13);
+const map = L.map('map', { minZoom:6, maxZoom:19 }).setView([10.7769,106.7009],13);
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    attribution:'© OpenStreetMap contributors'
-  }).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  attribution:'© OpenStreetMap contributors'
+}).addTo(map);
 
-  const markers = L.layerGroup();
-  map.addLayer(markers);
+const markers = L.layerGroup();
+map.addLayer(markers);
 
-  let isInputMode = false;
-  const toggleButton = document.getElementById("toggle-mode");
+// Chế độ nhập dữ liệu
+let isInputMode = false;
+const toggleButton = document.getElementById("toggle-mode");
 
-  toggleButton.addEventListener("click", () => {
-    isInputMode = !isInputMode;
-    map.getContainer().style.cursor = isInputMode ? "pointer" : "default";
-    toggleButton.textContent = isInputMode ? "Chuyển sang chế độ xem" : "Chuyển sang chế độ điền dữ liệu";
+toggleButton.addEventListener("click", () => {
+  isInputMode = !isInputMode;
+  map.getContainer().style.cursor = isInputMode ? "pointer" : "default";
+  toggleButton.textContent = isInputMode ? "Chuyển sang chế độ xem" : "Chuyển sang chế độ điền dữ liệu";
+});
+
+// Hàm nhận diện icon thương hiệu
+const getBrandIcon = (brand) => {
+  const brands = ["7-Eleven", "Circle K", "GS25", "Ministop", "WinMart", "FamilyMart"];
+  const matchedBrand = brands.find(b => brand.toLowerCase().includes(b.toLowerCase()));
+  const iconUrl = matchedBrand ? `logos/${matchedBrand}.png` : 'https://leafletjs.com/examples/custom-icons/leaf-green.png';
+
+  return L.icon({
+    iconUrl, iconSize:[20,20], iconAnchor:[10,20], popupAnchor:[0,-20]
   });
+};
 
-  const getBrandIcon = (brand) => {
-    const brands = ["7-Eleven", "Circle K", "GS25", "Ministop", "WinMart", "FamilyMart"];
-    const matchedBrand = brands.find(b => brand.toLowerCase().includes(b.toLowerCase()));
-    const iconUrl = matchedBrand ? `logos/${matchedBrand}.png` : 'https://leafletjs.com/examples/custom-icons/leaf-green.png';
-
-    return L.icon({
-      iconUrl, iconSize:[20,20], iconAnchor:[10,20], popupAnchor:[0,-20]
-    });
-  };
-
-  // Load markers từ Google Sheets
-  fetch(GOOGLE_SHEET_API)
-  .then(res => res.json())
-  .then(data => {
-    data.forEach(point => {
-      const marker = L.marker([point.lat, point.lon], { icon: getBrandIcon(point.name) })
-        .bindPopup(`<b>${point.name}</b><br>Loại: ${point.type}<br>${point.desc}`);
-      markers.addLayer(marker);
-    });
+// 📌 1. Load marker từ Google Sheets
+fetch(GOOGLE_SHEET_API)
+.then(res => res.json())
+.then(data => {
+  data.forEach(point => {
+    const marker = L.marker([point.lat, point.lon], { icon: getBrandIcon(point.name) })
+      .bindPopup(`<b>${point.name}</b><br>Loại: ${point.type}<br>${point.desc}`);
+    markers.addLayer(marker);
   });
+});
 
-  // Load marker thật từ OSM (Overpass API)
-  const overpassQuery = `[out:json][timeout:25];
+// 📌 2. Hiện toàn bộ POI từ OSM (TP.HCM)
+let osmLayer = L.layerGroup();
+let osmVisible = false;
+
+document.getElementById("toggle-osm").addEventListener("click", () => {
+  if (!osmVisible) {
+    loadOSMMarkers();
+    map.addLayer(osmLayer);
+    osmVisible = true;
+    document.getElementById("toggle-osm").textContent = "Ẩn điểm từ OSM";
+  } else {
+    map.removeLayer(osmLayer);
+    osmVisible = false;
+    document.getElementById("toggle-osm").textContent = "Hiện điểm từ OSM";
+  }
+});
+
+function loadOSMMarkers() {
+  const query = `
+  [out:json][timeout:60];
+  area["name"="Thành phố Hồ Chí Minh"]->.searchArea;
   (
-    node["shop"="convenience"](around:5000,10.7769,106.7009);
+    node(area.searchArea)["name"];
   );
-  out;`;
+  out center;
+  `;
 
   fetch("https://overpass-api.de/api/interpreter", {
     method: "POST",
-    body: overpassQuery
+    body: query
   })
   .then(res => res.json())
   .then(data => {
-    data.elements.forEach(point => {
-      const name = point.tags.name || "Không rõ tên";
-      const type = point.tags.shop || "convenience";
-      const address = point.tags["addr:full"] || point.tags["addr:street"] || "Không rõ địa chỉ";
+    data.elements.forEach(poi => {
+      const name = poi.tags.name || "Không rõ tên";
+      const type = poi.tags.amenity || poi.tags.shop || poi.tags.tourism || poi.tags.office || "POI";
 
-      const marker = L.marker([point.lat, point.lon], { icon: getBrandIcon(name) })
+      const marker = L.marker([poi.lat, poi.lon])
         .bindPopup(`
           <b>${name}</b><br>
           Loại: ${type}<br>
-          Địa chỉ: ${address}<br><br>
-          <textarea id="note-${point.id}" rows="2" placeholder="Nhập ghi chú..." style="width:100%"></textarea>
-          <button onclick="saveNote('${point.id}')">Lưu ghi chú</button>
+          <i>Dữ liệu từ OpenStreetMap</i>
         `);
 
-      markers.addLayer(marker);
+      osmLayer.addLayer(marker);
     });
   });
+}
 
-  function saveNote(id) {
-    const textarea = document.getElementById(`note-${id}`);
-    const content = textarea?.value || '';
-    alert(`(Giả lập) Đã lưu ghi chú cho ID ${id}: ${content}`);
-  }
+// 📌 3. Thêm marker mới khi đang ở chế độ nhập
+map.on('click', function(e) {
+  if (!isInputMode) return;
 
-  // Click trên bản đồ để thêm marker nếu đang ở chế độ nhập
-  map.on('click', function(e) {
-    if (!isInputMode) return;
+  const lat = e.latlng.lat;
+  const lon = e.latlng.lon;
 
-    const lat = e.latlng.lat;
-    const lon = e.latlng.lon;
+  const popupContent = `
+    <div>
+      <label><b>Tên địa điểm:</b></label><br>
+      <input id="marker-name" type="text" placeholder="Nhập tên"><br>
+      <label><b>Loại địa điểm:</b></label><br>
+      <input id="marker-type" type="text" placeholder="VD: Cafe, Cửa hàng"><br>
+      <label><b>Mô tả:</b></label><br>
+      <input id="marker-desc" type="text" placeholder="Nhập mô tả"><br>
+      <button onclick="saveMarker(${lat}, ${lon})">Lưu</button>
+    </div>
+  `;
 
-    const popupContent = `
-      <div>
-        <label><b>Tên địa điểm:</b></label><br>
-        <input id="marker-name" type="text" placeholder="Nhập tên"><br>
-        <label><b>Loại địa điểm:</b></label><br>
-        <input id="marker-type" type="text" placeholder="Nhập loại (VD: Cafe, Cửa hàng)"><br>
-        <label><b>Mô tả:</b></label><br>
-        <input id="marker-desc" type="text" placeholder="Nhập mô tả"><br>
-        <button onclick="saveMarker(${lat}, ${lon})">Lưu</button>
-      </div>
-    `;
+  L.popup()
+    .setLatLng(e.latlng)
+    .setContent(popupContent)
+    .openOn(map);
+});
 
-    L.popup()
-      .setLatLng(e.latlng)
-      .setContent(popupContent)
-      .openOn(map);
-  });
+function saveMarker(lat, lon) {
+  const name = document.getElementById("marker-name").value || "Không tên";
+  const type = document.getElementById("marker-type").value || "Không xác định";
+  const desc = document.getElementById("marker-desc").value || "";
 
-  function saveMarker(lat, lon) {
-    const name = document.getElementById("marker-name").value || "Không tên";
-    const type = document.getElementById("marker-type").value || "Không xác định";
-    const desc = document.getElementById("marker-desc").value || "";
+  fetch(GOOGLE_SHEET_API, {
+    method: "POST",
+    body: JSON.stringify({ lat, lon, name, type, desc }),
+    headers: { "Content-Type": "application/json" }
+  }).then(() => alert("Đã lưu vào Google Sheets!"))
+    .then(() => location.reload());
+}
 
-    fetch(GOOGLE_SHEET_API, {
-      method: "POST",
-      body: JSON.stringify({ lat, lon, name, type, desc }),
-      headers: { "Content-Type": "application/json" }
-    }).then(() => alert("Đã lưu vào Google Sheets!"))
-      .then(() => location.reload());
-  }
+// 📌 4. Tìm kiếm địa chỉ
+const searchControl = new GeoSearch.GeoSearchControl({
+  provider: new GeoSearch.OpenStreetMapProvider({ params: { countrycodes: 'vn' } }),
+  style: 'bar',
+  autoComplete: true,
+  searchLabel: 'Nhập địa chỉ tại Việt Nam...'
+});
 
-  // Chỉ hiện marker khi zoom đủ lớn
-  map.on('zoomend', function() {
-    if (map.getZoom() >= 15) {
-      map.addLayer(markers);
-    } else {
-      map.removeLayer(markers);
-    }
-  });
-
-  // Tìm kiếm địa chỉ
-  const searchControl = new GeoSearch.GeoSearchControl({
-    provider: new GeoSearch.OpenStreetMapProvider({ params: { countrycodes: 'vn' } }),
-    style: 'bar',
-    autoComplete: true,
-    searchLabel: 'Nhập địa chỉ tại Việt Nam...'
-  });
-
-  map.addControl(searchControl);
+map.addControl(searchControl);
 </script>
 </body>
 </html>
