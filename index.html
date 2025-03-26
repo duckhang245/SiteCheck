@@ -85,7 +85,7 @@ fetch(GOOGLE_SHEET_API)
 // 📌 Xử lý click bản đồ
 map.on('click', function(e) {
   const lat = e.latlng.lat;
-  const lon = e.latlng.lon;
+  const lng = e.latlng.lng;
 
   if (isInputMode) {
     // Chế độ nhập
@@ -97,41 +97,38 @@ map.on('click', function(e) {
         <input id="marker-type" type="text" placeholder="VD: Cafe, Cửa hàng"><br>
         <label><b>Mô tả:</b></label><br>
         <input id="marker-desc" type="text" placeholder="Nhập mô tả"><br>
-        <button onclick="saveMarker(${lat}, ${lon})">Lưu</button>
+        <button onclick="saveMarker(${lat}, ${lng})">Lưu</button>
       </div>
     `;
+    L.popup().setLatLng([lat, lng]).setContent(popupContent).openOn(map);
 
-    L.popup()
-      .setLatLng(e.latlng)
-      .setContent(popupContent)
-      .openOn(map);
   } else {
-    // Chế độ xem: truy vấn Nominatim để lấy thông tin
-    fetch(`https://corsproxy.io/?https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
+    // Chế độ xem – dùng proxy server chuyên biệt
+    fetch(`https://nominatim-api.vercel.app/reverse?lat=${lat}&lon=${lng}`)
       .then(res => res.json())
       .then(data => {
-        const name = data.name || data.display_name || "Không rõ địa điểm";
-        const addr = data.address ? Object.values(data.address).join(", ") : "";
+        const name = data.name || "Không rõ tên";
+        const address = data.display_name || "Không rõ địa chỉ";
 
-        const content = `
+        const popupContent = `
           <b>${name}</b><br>
-          <i>${addr}</i><br>
-          <small>Dữ liệu từ OpenStreetMap (Nominatim)</small>
+          <i>${address}</i><br>
+          <small>Dữ liệu từ OpenStreetMap</small>
         `;
-
-        L.popup()
-          .setLatLng([lat, lon])
-          .setContent(content)
-          .openOn(map);
+        L.popup().setLatLng([lat, lng]).setContent(popupContent).openOn(map);
       })
-      .catch(() => {
+      .catch(err => {
+        console.error("Lỗi khi gọi Nominatim:", err);
         L.popup()
-          .setLatLng([lat, lon])
-          .setContent("Không tìm thấy thông tin từ OSM.")
+          .setLatLng([lat, lng])
+          .setContent("Không thể lấy thông tin từ OSM.")
           .openOn(map);
       });
   }
 });
+
+
+
 
 
 // 📌 Hàm lưu dữ liệu vào Google Sheets
