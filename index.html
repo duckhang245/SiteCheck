@@ -88,7 +88,7 @@ map.on('click', function(e) {
   const lon = e.latlng.lon;
 
   if (isInputMode) {
-    // Chế độ nhập: hiển thị form nhập liệu
+    // Chế độ nhập
     const popupContent = `
       <div>
         <label><b>Tên địa điểm:</b></label><br>
@@ -106,8 +106,8 @@ map.on('click', function(e) {
       .setContent(popupContent)
       .openOn(map);
   } else {
-    // Chế độ xem: lấy dữ liệu từ OSM (Nominatim)
-    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
+    // Chế độ xem: truy vấn Nominatim để lấy thông tin
+    fetch(`https://corsproxy.io/?https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
       .then(res => res.json())
       .then(data => {
         const name = data.name || data.display_name || "Không rõ địa điểm";
@@ -116,7 +116,7 @@ map.on('click', function(e) {
         const content = `
           <b>${name}</b><br>
           <i>${addr}</i><br>
-          <small>Dữ liệu từ OpenStreetMap</small>
+          <small>Dữ liệu từ OpenStreetMap (Nominatim)</small>
         `;
 
         L.popup()
@@ -132,6 +132,7 @@ map.on('click', function(e) {
       });
   }
 });
+
 
 // 📌 Hàm lưu dữ liệu vào Google Sheets
 function saveMarker(lat, lon) {
