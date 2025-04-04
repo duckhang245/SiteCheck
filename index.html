@@ -38,7 +38,7 @@
 <script src="https://unpkg.com/leaflet-geosearch@3.11.1/dist/geosearch.umd.js"></script>
 
 <script>
-const GOOGLE_SHEET_API = "https://script.google.com/macros/s/AKfycbwrWp-yQOeu2j1H_YPioN8Fna1v6boIm9Swv7aZs96-BNFLHOcdK7laKHGgz3TkgdK0cA/exec"; // Thay bằng URL từ GAS
+const GOOGLE_SHEET_API = "/.netlify/functions/proxy"; // URL tương đối
 
 const map = L.map('map', { minZoom:6, maxZoom:19 }).setView([10.7769,106.7009],13);
 
