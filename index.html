@@ -38,7 +38,7 @@
 <script src="https://unpkg.com/leaflet-geosearch@3.11.1/dist/geosearch.umd.js"></script>
 
 <script>
-const GOOGLE_SHEET_API = "https://script.google.com/macros/s/AKfycbyB7_rhsQAu3sGmjKuRIUQmEanEO1H1BnKPZei0EujjTvYsWMiCHDUeY0h4tN-lRGJsMg/exec"; // Thay bằng URL từ GAS
+const GOOGLE_SHEET_API = "https://script.google.com/macros/s/AKfycb.../exec"; // Thay bằng URL từ GAS
 
 const map = L.map('map', { minZoom:6, maxZoom:19 }).setView([10.7769,106.7009],13);
 
@@ -71,24 +71,26 @@ const getBrandIcon = (brand) => {
   });
 };
 
-// Tải dữ liệu marker từ Google Sheets
-fetch(GOOGLE_SHEET_API, {
-  method: "GET",
-  headers: { "Content-Type": "application/json" }
-})
-  .then(res => {
-    if (!res.ok) throw new Error(`Lỗi HTTP! Trạng thái: ${res.status}`);
-    return res.json();
-  })
-  .then(data => {
-    console.log("Dữ liệu từ API:", data); // Debug
-    data.forEach(point => {
-      const marker = L.marker([point.lat, point.lon], { icon: getBrandIcon(point.name) })
-        .bindPopup(`<b>${point.name}</b><br>Loại: ${point.type}<br>${point.desc}`);
-      markers.addLayer(marker);
-    });
-  })
-  .catch(err => console.error("Lỗi khi tải dữ liệu:", err));
+// Tải dữ liệu marker từ Google Sheets bằng XMLHttpRequest
+const xhrGet = new XMLHttpRequest();
+xhrGet.open("GET", GOOGLE_SHEET_API, true);
+xhrGet.setRequestHeader("Content-Type", "application/json");
+xhrGet.onreadystatechange = function () {
+  if (xhrGet.readyState === 4) {
+    if (xhrGet.status === 200) {
+      const data = JSON.parse(xhrGet.responseText);
+      console.log("Dữ liệu từ API:", data); // Debug
+      data.forEach(point => {
+        const marker = L.marker([point.lat, point.lon], { icon: getBrandIcon(point.name) })
+          .bindPopup(`<b>${point.name}</b><br>Loại: ${point.type}<br>${point.desc}`);
+        markers.addLayer(marker);
+      });
+    } else {
+      console.error("Lỗi khi tải dữ liệu:", xhrGet.status, xhrGet.statusText);
+    }
+  }
+};
+xhrGet.send();
 
 // Xử lý click bản đồ
 map.on('click', function(e) {
@@ -109,63 +111,63 @@ map.on('click', function(e) {
     `;
     L.popup().setLatLng([lat, lng]).setContent(popupContent).openOn(map);
   } else {
-    fetch(`https://nominatim-api.vercel.app/reverse?lat=${lat}&lon=${lng}`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" }
-    })
-      .then(res => {
-        if (!res.ok) throw new Error(`Lỗi HTTP! Trạng thái: ${res.status}`);
-        return res.json();
-      })
-      .then(data => {
-        const name = data.name || "Không rõ tên";
-        const address = data.display_name || "Không rõ địa chỉ";
-        const popupContent = `
-          <b>${name}</b><br>
-          <i>${address}</i><br>
-          <small>Dữ liệu từ OpenStreetMap</small>
-        `;
-        L.popup().setLatLng([lat, lng]).setContent(popupContent).openOn(map);
-      })
-      .catch(err => {
-        console.error("Lỗi khi gọi Nominatim:", err);
-        L.popup()
-          .setLatLng([lat, lng])
-          .setContent("Không thể lấy thông tin từ OSM.")
-          .openOn(map);
-      });
+    // Gọi API Nominatim bằng XMLHttpRequest
+    const xhrNominatim = new XMLHttpRequest();
+    xhrNominatim.open("GET", `https://nominatim-api.vercel.app/reverse?lat=${lat}&lon=${lng}`, true);
+    xhrNominatim.setRequestHeader("Content-Type", "application/json");
+    xhrNominatim.onreadystatechange = function () {
+      if (xhrNominatim.readyState === 4) {
+        if (xhrNominatim.status === 200) {
+          const data = JSON.parse(xhrNominatim.responseText);
+          const name = data.name || "Không rõ tên";
+          const address = data.display_name || "Không rõ địa chỉ";
+          const popupContent = `
+            <b>${name}</b><br>
+            <i>${address}</i><br>
+            <small>Dữ liệu từ OpenStreetMap</small>
+          `;
+          L.popup().setLatLng([lat, lng]).setContent(popupContent).openOn(map);
+        } else {
+          console.error("Lỗi khi gọi Nominatim:", xhrNominatim.status, xhrNominatim.statusText);
+          L.popup()
+            .setLatLng([lat, lng])
+            .setContent("Không thể lấy thông tin từ OSM.")
+            .openOn(map);
+        }
+      }
+    };
+    xhrNominatim.send();
   }
 });
 
-// Hàm lưu dữ liệu vào Google Sheets
+// Hàm lưu dữ liệu vào Google Sheets bằng XMLHttpRequest
 function saveMarker(lat, lon) {
   const name = document.getElementById("marker-name").value || "Không tên";
   const type = document.getElementById("marker-type").value || "Không xác định";
   const desc = document.getElementById("marker-desc").value || "";
   console.log("Dữ liệu gửi:", { lat, lon, name, type, desc }); // Debug
 
-  fetch(GOOGLE_SHEET_API, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ lat, lon, name, type, desc })
-  })
-    .then(res => {
-      if (!res.ok) throw new Error(`Lỗi HTTP! Trạng thái: ${res.status}`);
-      return res.json();
-    })
-    .then(data => {
-      console.log("Phản hồi từ API:", data); // Debug
-      if (data.status === "success") {
-        alert("Đã lưu vào Google Sheets!");
-        location.reload();
+  const xhrPost = new XMLHttpRequest();
+  xhrPost.open("POST", GOOGLE_SHEET_API, true);
+  xhrPost.setRequestHeader("Content-Type", "application/json");
+  xhrPost.onreadystatechange = function () {
+    if (xhrPost.readyState === 4) {
+      if (xhrPost.status === 200) {
+        const data = JSON.parse(xhrPost.responseText);
+        console.log("Phản hồi từ API:", data); // Debug
+        if (data.status === "success") {
+          alert("Đã lưu vào Google Sheets!");
+          location.reload();
+        } else {
+          alert("Lưu thất bại!");
+        }
       } else {
-        alert("Lưu thất bại!");
+        console.error("Lỗi khi lưu dữ liệu:", xhrPost.status, xhrPost.statusText);
+        alert("Lỗi: " + xhrPost.statusText);
       }
-    })
-    .catch(err => {
-      console.error("Lỗi khi lưu dữ liệu:", err);
-      alert("Lỗi: " + err.message);
-    });
+    }
+  };
+  xhrPost.send(JSON.stringify({ lat, lon, name, type, desc }));
 }
 
 // Tìm kiếm địa chỉ
