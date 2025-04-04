@@ -38,7 +38,7 @@
 <script src="https://unpkg.com/leaflet-geosearch@3.11.1/dist/geosearch.umd.js"></script>
 
 <script>
-const GOOGLE_SHEET_API = "YOUR_DEPLOYED_API_URL"; // ← Thay bằng URL của Google Apps Script API
+const GOOGLE_SHEET_API = "https://script.google.com/a/macros/7-eleven.vn/s/AKfycbyB7_rhsQAu3sGmjKuRIUQmEanEO1H1BnKPZei0EujjTvYsWMiCHDUeY0h4tN-lRGJsMg/exec"; // Thay bằng URL từ GAS
 
 const map = L.map('map', { minZoom:6, maxZoom:19 }).setView([10.7769,106.7009],13);
 
@@ -71,7 +71,7 @@ const getBrandIcon = (brand) => {
   });
 };
 
-// 📌 Tải dữ liệu marker từ Google Sheets
+// Tải dữ liệu marker từ Google Sheets
 fetch(GOOGLE_SHEET_API)
   .then(res => res.json())
   .then(data => {
@@ -80,15 +80,15 @@ fetch(GOOGLE_SHEET_API)
         .bindPopup(`<b>${point.name}</b><br>Loại: ${point.type}<br>${point.desc}`);
       markers.addLayer(marker);
     });
-  });
+  })
+  .catch(err => console.error("Lỗi khi tải dữ liệu:", err));
 
-// 📌 Xử lý click bản đồ
+// Xử lý click bản đồ
 map.on('click', function(e) {
   const lat = e.latlng.lat;
   const lng = e.latlng.lng;
 
   if (isInputMode) {
-    // Chế độ nhập
     const popupContent = `
       <div>
         <label><b>Tên địa điểm:</b></label><br>
@@ -101,15 +101,12 @@ map.on('click', function(e) {
       </div>
     `;
     L.popup().setLatLng([lat, lng]).setContent(popupContent).openOn(map);
-
   } else {
-    // Chế độ xem – dùng proxy server chuyên biệt
     fetch(`https://nominatim-api.vercel.app/reverse?lat=${lat}&lon=${lng}`)
       .then(res => res.json())
       .then(data => {
         const name = data.name || "Không rõ tên";
         const address = data.display_name || "Không rõ địa chỉ";
-
         const popupContent = `
           <b>${name}</b><br>
           <i>${address}</i><br>
@@ -127,11 +124,7 @@ map.on('click', function(e) {
   }
 });
 
-
-
-
-
-// 📌 Hàm lưu dữ liệu vào Google Sheets
+// Hàm lưu dữ liệu vào Google Sheets
 function saveMarker(lat, lon) {
   const name = document.getElementById("marker-name").value || "Không tên";
   const type = document.getElementById("marker-type").value || "Không xác định";
@@ -141,18 +134,24 @@ function saveMarker(lat, lon) {
     method: "POST",
     body: JSON.stringify({ lat, lon, name, type, desc }),
     headers: { "Content-Type": "application/json" }
-  }).then(() => alert("Đã lưu vào Google Sheets!"))
-    .then(() => location.reload());
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === "success") {
+        alert("Đã lưu vào Google Sheets!");
+        location.reload(); // Tải lại trang để cập nhật marker
+      }
+    })
+    .catch(err => console.error("Lỗi khi lưu dữ liệu:", err));
 }
 
-// 📌 Tìm kiếm địa chỉ
+// Tìm kiếm địa chỉ
 const searchControl = new GeoSearch.GeoSearchControl({
   provider: new GeoSearch.OpenStreetMapProvider({ params: { countrycodes: 'vn' } }),
   style: 'bar',
   autoComplete: true,
   searchLabel: 'Nhập địa chỉ tại Việt Nam...'
 });
-
 map.addControl(searchControl);
 </script>
 </body>
